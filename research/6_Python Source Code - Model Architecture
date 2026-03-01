@@ -1,0 +1,199 @@
+
+# 6. Python Source Code - Model Architecture
+
+model_architecture = """\"\"\"
+CNN Model Architectures for Image Classification
+Supports ResNet, EfficientNet, and custom architectures
+\"\"\"
+
+import torch
+import torch.nn as nn
+import torchvision.models as models
+from typing import Optional, List
+import timm
+
+
+class CNNClassifier(nn.Module):
+    \"\"\"Generic CNN Classifier with transfer learning support\"\"\"
+    
+    def __init__(
+        self,
+        num_classes: int = 10,
+        architecture: str = "resnet50",
+        pretrained: bool = True,
+        dropout: float = 0.5,
+        freeze_backbone: bool = False,
+        img_size: int = 224
+    ):
+        super(CNNClassifier, self).__init__()
+        
+        self.num_classes = num_classes
+        self.architecture = architecture
+        self.img_size = img_size
+        
+        # Build backbone
+        self.backbone = self._build_backbone(architecture, pretrained)
+        
+        # Freeze backbone if requested
+        if freeze_backbone:
+            for param in self.backbone.parameters():
+                param.requires_grad = False
+        
+        # Get feature dimension
+        self.feature_dim = self._get_feature_dim()
+        
+        # Custom classification head
+        self.classifier = nn.Sequential(
+            nn.AdaptiveAvgPool2d(1),
+            nn.Flatten(),
+            nn.Dropout(dropout),
+            nn.Linear(self.feature_dim, 512),
+            nn.ReLU(inplace=True),
+            nn.BatchNorm1d(512),
+            nn.Dropout(dropout / 2),
+            nn.Linear(512, num_classes)
+        )
+        
+        self._initialize_weights()
+    
+    def _build_backbone(self, architecture: str, pretrained: bool) -> nn.Module:
+        \"\"\"Build the backbone network\"\"\"
+        weights = "IMAGENET1K_V2" if pretrained else None
+        
+        if architecture == "resnet50":
+            model = models.resnet50(weights=weights)
+            # Remove the final FC layer
+            backbone = nn.Sequential(*list(model.children())[:-2])
+        elif architecture == "resnet18":
+            model = models.resnet18(weights=weights)
+            backbone = nn.Sequential(*list(model.children())[:-2])
+        elif architecture == "efficientnet_b0":
+            model = models.efficientnet_b0(weights=weights)
+            backbone = model.features
+        elif architecture == "efficientnet_b4":
+            model = models.efficientnet_b4(weights=weights)
+            backbone = model.features
+        elif "vit" in architecture:
+            # Vision Transformer from timm
+            backbone = timm.create_model(
+                architecture, 
+                pretrained=pretrained, 
+                num_classes=0,  # Remove head
+                img_size=self.img_size
+            )
+        else:
+            raise ValueError(f"Unsupported architecture: {architecture}")
+        
+        return backbone
+    
+    def _get_feature_dim(self) -> int:
+        \"\"\"Get the feature dimension of the backbone\"\"\"
+        if "resnet50" in self.architecture:
+            return 2048
+        elif "resnet18" in self.architecture:
+            return 512
+        elif "efficientnet_b0" in self.architecture:
+            return 1280
+        elif "efficientnet_b4" in self.architecture:
+            return 1792
+        elif "vit" in self.architecture:
+            return self.backbone.num_features
+        return 2048
+    
+    def _initialize_weights(self):
+        \"\"\"Initialize classifier weights\"\"\"
+        for m in self.classifier.modules():
+            if isinstance(m, nn.Linear):
+                nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
+                if m.bias is not None:
+                    nn.init.constant_(m.bias, 0)
+            elif isinstance(m, nn.BatchNorm1d):
+                nn.init.constant_(m.weight, 1)
+                nn.init.constant_(m.bias, 0)
+    
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        \"\"\"Forward pass\"\"\"
+        features = self.backbone(x)
+        
+        # Handle ViT differently (already flattened)
+        if "vit" in self.architecture:
+            return self.classifier(features)
+        
+        return self.classifier(features)
+    
+    def get_features(self, x: torch.Tensor) -> torch.Tensor:
+        \"\"\"Extract features before classification\"\"\"
+        with torch.no_grad():
+            features = self.backbone(x)
+            if "vit" not in self.architecture:
+                features = nn.AdaptiveAvgPool2d(1)(features)
+                features = features.view(features.size(0), -1)
+        return features
+    
+    def predict_with_confidence(self, x: torch.Tensor) -> tuple:
+        \"\"\"Predict with confidence scores\"\"\"
+        self.eval()
+        with torch.no_grad():
+            logits = self.forward(x)
+            probabilities = torch.softmax(logits, dim=1)
+            confidence, predicted = torch.max(probabilities, 1)
+        return predicted, confidence, probabilities
+
+
+class EnsembleClassifier(nn.Module):
+    \"\"\"Ensemble of multiple CNN models\"\"\"
+    
+    def __init__(
+        self,
+        models: List[CNNClassifier],
+        weights: Optional[List[float]] = None
+    ):
+        super(EnsembleClassifier, self).__init__()
+        self.models = nn.ModuleList(models)
+        
+        if weights is None:
+            weights = [1.0 / len(models)] * len(models)
+        self.weights = torch.tensor(weights)
+    
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        \"\"\"Weighted average of model predictions\"\"\"
+        outputs = []
+        for model in self.models:
+            model.eval()
+            with torch.no_grad():
+                outputs.append(torch.softmax(model(x), dim=1))
+        
+        # Weighted average
+        outputs = torch.stack(outputs)  # [num_models, batch, num_classes]
+        weights = self.weights.view(-1, 1, 1).to(outputs.device)
+        ensemble_output = (outputs * weights).sum(dim=0)
+        
+        return torch.log(ensemble_output + 1e-8)  # Return log probs for consistency
+
+
+def build_model(config: dict) -> CNNClassifier:
+    \"\"\"Factory function to build model from config\"\"\"
+    return CNNClassifier(
+        num_classes=config.get("num_classes", 10),
+        architecture=config.get("architecture", "resnet50"),
+        pretrained=config.get("pretrained", True),
+        dropout=config.get("dropout", 0.5),
+        freeze_backbone=config.get("freeze_backbone", False),
+        img_size=config.get("img_size", 224)
+    )
+
+
+if __name__ == "__main__":
+    # Test model
+    model = CNNClassifier(num_classes=10, architecture="resnet50")
+    x = torch.randn(2, 3, 224, 224)
+    output = model(x)
+    print(f"Input shape: {x.shape}")
+    print(f"Output shape: {output.shape}")
+    print(f"Parameters: {sum(p.numel() for p in model.parameters()):,}")
+"""
+
+with open(f"{project_root}/src/models/cnn_classifier.py", "w") as f:
+    f.write(model_architecture)
+
+print("✅ Model architecture created")
