@@ -271,7 +271,7 @@ Tier 3: State-of-the-Art (2020+)
     Purpose: Modernize CNNs to match Transformers
     Architecture: Pure CNN with modern training techniques
     When to use: When you want Transformer performance with CNN simplicity
-
+---
 PHASE 4: Training Strategy (Research-Grade)
 4.1 Optimization Configuration
 Optimizer Selection:
@@ -300,7 +300,7 @@ Loss Functions:
     LabelSmoothingCrossEntropy (ε=0.1, prevents overconfidence)
     Focal Loss (for imbalanced datasets, γ=2.0)
     Bi-Tempered Loss (robust to noise)
-
+---
 4.2 Regularization Techniques
 Dropout Strategy:
 
@@ -313,7 +313,7 @@ Advanced Regularization:
     Stochastic Depth (DropPath): Randomly drop layers during training (p=0.2)
     DropBlock: Structured dropout for conv layers
     Spectral Normalization: On discriminator (for GANs) or stabilizes training
-
+---
 4.3 Training Loop Best Practices
 Mixed Precision Training:
 
@@ -330,6 +330,7 @@ Exponential Moving Average (EMA):
 
     Maintain shadow weights: θ_ema = 0.999 × θ_ema + 0.001 × θ
     Use EMA weights for evaluation (more stable)
+---
 
 PHASE 5: Evaluation & Model Comparison
 5.1 Primary Metrics
@@ -340,13 +341,14 @@ Classification Metrics:
     Macro-F1: Average F1 across classes (handles imbalance)
     Cohen's Kappa: Agreement measure (accounts for chance)
     Matthews Correlation Coefficient (MCC): Balanced measure for binary/multiclass
-
+---
 Efficiency Metrics:
 
     Inference Time: ms per image (CPU & GPU)
     FLOPs: Floating point operations
     Parameters: Model size (MB)
     Memory Usage: Peak GPU/CPU memory
+---
 
 5.2 Statistical Comparison
 Paired t-test: Compare two models' performance across folds
@@ -357,13 +359,13 @@ Confusion Matrix Analysis:
 
     Identify most confused class pairs
     Analyze false positives vs false negatives
-
+---
 Failure Modes:
 
     Adversarial examples
     Out-of-distribution samples
     Edge cases (occlusion, lighting)
-
+---
 PHASE 6: Hyperparameter Optimization
 6.1 Search Strategy
 Bayesian Optimization (Optuna):
@@ -371,6 +373,7 @@ Bayesian Optimization (Optuna):
     Builds probabilistic model of objective function
     Efficiently searches high-dimensional space
     Handles conditional parameters (e.g., Adam vs SGD hyperparams)
+---
 
 Population Based Training (PBT):
 
@@ -395,6 +398,7 @@ Population Based Training (PBT):
     Pruning: Stop unpromising trials early (median stopping rule)
     Max Trials: 100-200 depending on compute budget
     Timeout: 24-48 hours maximum
+---
 
 PHASE 7: Final Model & Deployment
 7.1 Ensemble Methods
@@ -403,11 +407,13 @@ Weighted Average Ensemble:
     Train 5 models with different seeds
     Weights proportional to validation accuracy
     Soft voting (average probabilities)
+---
 
 Stacking (Super Learner):
 
     Train meta-learner (usually logistic regression) on base model predictions
     Use out-of-fold predictions to avoid leakage
+---
 
 7.2 Knowledge Distillation
 Teacher-Student Training:
@@ -415,6 +421,8 @@ Teacher-Student Training:
     Large teacher model (e.g., EfficientNet-B7) provides soft targets
     Small student model (e.g., MobileNet) learns from soft labels
     Temperature scaling (T=4) for softer probability distribution
+
+---
 
 7.3 Model Export Formats
 
@@ -427,6 +435,7 @@ Teacher-Student Training:
 | **TorchScript**      | .pt         | PyTorch production           |
 | **Quantized INT8**   | various     | 4x smaller, faster inference |
 
+---
 
 7.4 Model Documentation (Model Card)
 Following Google's Model Cards framework:
@@ -440,6 +449,8 @@ Following Google's Model Cards framework:
     Quantitative Analyses: Performance metrics
     Ethical Considerations: Potential biases, fairness
     Caveats: Known limitations, recommendations
+
+---
 
 📊 Expected Results Template
 Model Comparison Table
@@ -461,4 +472,39 @@ Model Comparison Table
 
 Note: Numbers are illustrative and depend on your specific dataset
 
+---
 
+🔬 Research Paper References
+
+    LeNet: LeCun et al., "Gradient-Based Learning Applied to Document Recognition" (1998)
+    AlexNet: Krizhevsky et al., "ImageNet Classification with Deep CNNs" (NIPS 2012)
+    VGG: Simonyan & Zisserman, "Very Deep Convolutional Networks" (ICLR 2015)
+    ResNet: He et al., "Deep Residual Learning for Image Recognition" (CVPR 2016)
+    DenseNet: Huang et al., "Densely Connected Convolutional Networks" (CVPR 2017)
+    Inception: Szegedy et al., "Rethinking the Inception Architecture" (CVPR 2016)
+    Xception: Chollet, "Xception: Deep Learning with Depthwise Separable Convolutions" (CVPR 2017)
+    MobileNetV2: Sandler et al., "MobileNetV2: Inverted Residuals" (CVPR 2018)
+    EfficientNet: Tan & Le, "EfficientNet: Rethinking Model Scaling" (ICML 2019)
+    ViT: Dosovitskiy et al., "An Image is Worth 16x16 Words" (ICLR 2021)
+    ConvNeXt: Liu et al., "A ConvNet for the 2020s" (CVPR 2022)
+    Training Tips: He et al., "Bag of Tricks for Image Classification" (CVPR 2019)
+
+---
+
+✅ Execution Checklist
+
+    [ ] Data Preparation: Validated, cleaned, augmented, split
+    [ ] EDA: Distribution analysis, visualization, statistics
+    [ ] Baseline: LeNet or simple CNN for reference
+    [ ] Classical Models: AlexNet, VGG (if dataset >10k)
+    [ ] Modern Models: ResNet-18/50, DenseNet (default choice)
+    [ ] Efficient Models: MobileNet, EfficientNet (production)
+    [ ] SOTA Models: ViT (if dataset >100k or transfer learning)
+    [ ] Training: Proper augmentation, scheduling, regularization
+    [ ] Evaluation: Multiple metrics, statistical tests
+    [ ] HPO: Bayesian optimization for top-3 models
+    [ ] Ensemble: Weighted average of best models
+    [ ] Export: Multiple formats for deployment
+    [ ] Documentation: Model card, README, requirements
+
+This template follows the complete ML research lifecycle and ensures reproducible, publication-quality results for CNN image classification tasks.

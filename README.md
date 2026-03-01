@@ -15,9 +15,10 @@
 
 ---
 
-### Project Structure
 
-----
+### 📁 Project Structure
+
+```text 
 
 classification-cnn-2d-mlops/ 
 ├── .github/workflows/ci-cd.yml    # 8-stage CI/CD 
@@ -39,28 +40,7 @@ classification-cnn-2d-mlops/
 ├── Makefile                        # Automation 
 └── pyproject.toml                  # Modern Python packaging 
  
----
-
-cnn-mlops-project/
-├── .github/workflows/ci-cd.yml    # 8-stage CI/CD
-├── docker/                         # Multi-stage Dockerfiles
-├── k8s/base/                       # K8s manifests
-├── k8s/overlays/dev,prod/          # Environment configs
-├── terraform/                      # AWS infrastructure
-├── src/
-│   ├── api/main.py                # FastAPI (400+ lines)
-│   ├── models/cnn_classifier.py   # ResNet/EfficientNet
-│   ├── training/train.py          # Trainer (350+ lines)
-│   ├── data/dataset.py            # Data pipeline
-│   ├── monitoring/drift_detector.py # Drift detection
-│   └── utils/                      # Logger, metrics, config
-├── streamlit_app/main.py          # Web UI (400+ lines)
-├── tests/                          # Unit, Integration, E2E
-├── docs/                           # Architecture & API docs
-├── docker-compose.yml              # Local development
-├── Makefile                        # Automation
-└── pyproject.toml                  # Modern Python packaging
----
+  ```
 
 
 🔒 Security Features
@@ -113,3 +93,6 @@ make test
 # 5. Deploy to AWS
 cd terraform && terraform apply
 kubectl apply -k k8s/overlays/prod
+
+
+
