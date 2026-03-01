@@ -1,0 +1,334 @@
+
+# 11. Utilities - Logger, Metrics, Config
+utils_logger = """\"\"\"
+Logging Utilities
+\"\"\"
+
+import logging
+import sys
+from pathlib import Path
+from datetime import datetime
+import json
+from typing import Any, Dict
+
+
+class JSONFormatter(logging.Formatter):
+    \"\"\"JSON formatter for structured logging\"\"\"
+    
+    def format(self, record: logging.LogRecord) -> str:
+        log_obj = {
+            "timestamp": datetime.utcnow().isoformat(),
+            "level": record.levelname,
+            "logger": record.name,
+            "message": record.getMessage(),
+            "module": record.module,
+            "function": record.funcName,
+            "line": record.lineno
+        }
+        
+        if hasattr(record, "props"):
+            log_obj.update(record.props)
+        
+        if record.exc_info:
+            log_obj["exception"] = self.formatException(record.exc_info)
+        
+        return json.dumps(log_obj)
+
+
+def setup_logger(
+    name: str,
+    level: int = logging.INFO,
+    log_file: str = None,
+    json_format: bool = False
+) -> logging.Logger:
+    \"\"\"Setup logger with console and file handlers\"\"\"
+    logger = logging.getLogger(name)
+    logger.setLevel(level)
+    
+    # Remove existing handlers
+    logger.handlers = []
+    
+    # Console handler
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setLevel(level)
+    
+    if json_format:
+        formatter = JSONFormatter()
+    else:
+        formatter = logging.Formatter(
+            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        )
+    
+    console_handler.setFormatter(formatter)
+    logger.addHandler(console_handler)
+    
+    # File handler
+    if log_file:
+        Path(log_file).parent.mkdir(parents=True, exist_ok=True)
+        file_handler = logging.FileHandler(log_file)
+        file_handler.setLevel(level)
+        file_handler.setFormatter(formatter)
+        logger.addHandler(file_handler)
+    
+    return logger
+
+
+class AverageMeter:
+    \"\"\"Computes and stores the average and current value\"\"\"
+    
+    def __init__(self):
+        self.reset()
+    
+    def reset(self):
+        self.val = 0
+        self.avg = 0
+        self.sum = 0
+        self.count = 0
+    
+    def update(self, val: float, n: int = 1):
+        self.val = val
+        self.sum += val * n
+        self.count += n
+        self.avg = self.sum / self.count
+"""
+
+utils_metrics = """\"\"\"
+Metrics and Monitoring Utilities
+\"\"\"
+
+import torch
+import numpy as np
+from sklearn.metrics import (
+    accuracy_score, precision_score, recall_score, f1_score,
+    confusion_matrix, classification_report, roc_auc_score,
+    precision_recall_curve, average_precision_score
+)
+from typing import Dict, List, Tuple
+import matplotlib.pyplot as plt
+import seaborn as sns
+from io import BytesIO
+import base64
+
+
+class MetricsCalculator:
+    \"\"\"Calculate and track metrics\"\"\"
+    
+    @staticmethod
+    def calculate_metrics(
+        y_true: np.ndarray,
+        y_pred: np.ndarray,
+        y_prob: np.ndarray = None,
+        class_names: List[str] = None
+    ) -> Dict[str, float]:
+        \"\"\"Calculate classification metrics\"\"\"
+        metrics = {
+            'accuracy': accuracy_score(y_true, y_pred),
+            'precision_macro': precision_score(y_true, y_pred, average='macro', zero_division=0),
+            'recall_macro': recall_score(y_true, y_pred, average='macro', zero_division=0),
+            'f1_macro': f1_score(y_true, y_pred, average='macro', zero_division=0),
+            'precision_weighted': precision_score(y_true, y_pred, average='weighted', zero_division=0),
+            'recall_weighted': recall_score(y_true, y_pred, average='weighted', zero_division=0),
+            'f1_weighted': f1_score(y_true, y_pred, average='weighted', zero_division=0),
+        }
+        
+        if y_prob is not None and len(np.unique(y_true)) == 2:
+            try:
+                metrics['roc_auc'] = roc_auc_score(y_true, y_prob)
+                metrics['average_precision'] = average_precision_score(y_true, y_prob)
+            except:
+                pass
+        
+        return metrics
+    
+    @staticmethod
+    def confusion_matrix_plot(
+        y_true: np.ndarray,
+        y_pred: np.ndarray,
+        class_names: List[str] = None
+    ) -> str:
+        \"\"\"Generate confusion matrix plot as base64 string\"\"\"
+        cm = confusion_matrix(y_true, y_pred)
+        
+        plt.figure(figsize=(10, 8))
+        sns.heatmap(
+            cm, 
+            annot=True, 
+            fmt='d', 
+            cmap='Blues',
+            xticklabels=class_names or range(len(cm)),
+            yticklabels=class_names or range(len(cm))
+        )
+        plt.title('Confusion Matrix')
+        plt.ylabel('True Label')
+        plt.xlabel('Predicted Label')
+        plt.tight_layout()
+        
+        buffer = BytesIO()
+        plt.savefig(buffer, format='png')
+        buffer.seek(0)
+        image_png = buffer.getvalue()
+        buffer.close()
+        plt.close()
+        
+        return base64.b64encode(image_png).decode()
+    
+    @staticmethod
+    def per_class_metrics(
+        y_true: np.ndarray,
+        y_pred: np.ndarray,
+        class_names: List[str] = None
+    ) -> Dict[str, Dict[str, float]]:
+        \"\"\"Calculate per-class metrics\"\"\"
+        report = classification_report(
+            y_true, y_pred, 
+            target_names=class_names,
+            output_dict=True,
+            zero_division=0
+        )
+        return report
+
+
+class EarlyStopping:
+    \"\"\"Early stopping handler\"\"\"
+    
+    def __init__(
+        self,
+        patience: int = 10,
+        min_delta: float = 0.0,
+        mode: str = 'max',
+        verbose: bool = True
+    ):
+        self.patience = patience
+        self.min_delta = min_delta
+        self.mode = mode
+        self.verbose = verbose
+        self.counter = 0
+        self.best_score = None
+        self.early_stop = False
+        
+        if mode == 'max':
+            self.is_better = lambda score, best: score > best + min_delta
+        else:
+            self.is_better = lambda score, best: score < best - min_delta
+    
+    def __call__(self, score: float) -> bool:
+        if self.best_score is None:
+            self.best_score = score
+            return False
+        
+        if self.is_better(score, self.best_score):
+            self.best_score = score
+            self.counter = 0
+        else:
+            self.counter += 1
+            if self.verbose:
+                print(f'EarlyStopping counter: {self.counter} out of {self.patience}')
+            if self.counter >= self.patience:
+                self.early_stop = True
+        
+        return self.early_stop
+"""
+
+utils_config = """\"\"\"
+Configuration Management
+\"\"\"
+
+import yaml
+import os
+from pathlib import Path
+from typing import Dict, Any
+from dataclasses import dataclass, field
+
+
+@dataclass
+class ModelConfig:
+    architecture: str = "resnet50"
+    num_classes: int = 10
+    pretrained: bool = True
+    dropout: float = 0.5
+    freeze_backbone: bool = False
+    img_size: int = 224
+
+@dataclass
+class TrainingConfig:
+    epochs: int = 100
+    batch_size: int = 32
+    learning_rate: float = 1e-3
+    weight_decay: float = 1e-4
+    scheduler: str = "cosine"
+    label_smoothing: float = 0.1
+    mixed_precision: bool = True
+    early_stopping_patience: int = 10
+    gradient_clip: float = 1.0
+
+@dataclass
+class DataConfig:
+    train_dir: str = "data/train"
+    val_dir: str = "data/val"
+    test_dir: str = "data/test"
+    num_workers: int = 4
+    pin_memory: bool = True
+
+@dataclass
+class Config:
+    model: ModelConfig = field(default_factory=ModelConfig)
+    training: TrainingConfig = field(default_factory=TrainingConfig)
+    data: DataConfig = field(default_factory=DataConfig)
+    seed: int = 42
+    experiment_name: str = "cnn-classifier"
+    checkpoint_dir: str = "checkpoints"
+    log_dir: str = "logs"
+
+
+class ConfigManager:
+    \"\"\"Manage configuration from files and environment variables\"\"\"
+    
+    @staticmethod
+    def load_yaml(path: str) -> Dict[str, Any]:
+        with open(path) as f:
+            return yaml.safe_load(f)
+    
+    @staticmethod
+    def save_yaml(config: Dict[str, Any], path: str):
+        Path(path).parent.mkdir(parents=True, exist_ok=True)
+        with open(path, 'w') as f:
+            yaml.dump(config, f, default_flow_style=False)
+    
+    @staticmethod
+    def from_dict(config_dict: Dict[str, Any]) -> Config:
+        \"\"\"Create Config from dictionary\"\"\"
+        return Config(
+            model=ModelConfig(**config_dict.get('model', {})),
+            training=TrainingConfig(**config_dict.get('training', {})),
+            data=DataConfig(**config_dict.get('data', {})),
+            seed=config_dict.get('seed', 42),
+            experiment_name=config_dict.get('experiment_name', 'cnn-classifier'),
+            checkpoint_dir=config_dict.get('checkpoint_dir', 'checkpoints'),
+            log_dir=config_dict.get('log_dir', 'logs')
+        )
+    
+    @staticmethod
+    def override_from_env(config: Config) -> Config:
+        \"\"\"Override config with environment variables\"\"\"
+        if os.getenv('MODEL_ARCHITECTURE'):
+            config.model.architecture = os.getenv('MODEL_ARCHITECTURE')
+        if os.getenv('BATCH_SIZE'):
+            config.training.batch_size = int(os.getenv('BATCH_SIZE'))
+        if os.getenv('LEARNING_RATE'):
+            config.training.learning_rate = float(os.getenv('LEARNING_RATE'))
+        if os.getenv('EPOCHS'):
+            config.training.epochs = int(os.getenv('EPOCHS'))
+        return config
+"""
+
+# Write utility files
+with open(f"{project_root}/src/utils/logger.py", "w") as f:
+    f.write(utils_logger)
+
+with open(f"{project_root}/src/utils/metrics.py", "w") as f:
+    f.write(utils_metrics)
+
+with open(f"{project_root}/src/utils/config.py", "w") as f:
+    f.write(utils_config)
+
+print("✅ Utility modules created (logger, metrics, config)")
