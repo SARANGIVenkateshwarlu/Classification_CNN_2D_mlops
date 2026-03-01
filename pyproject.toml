@@ -1,0 +1,7 @@
+[project]
+name = "classification-cnn-2d-mlops"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = []
