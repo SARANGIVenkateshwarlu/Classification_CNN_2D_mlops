@@ -1,0 +1,31 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: solar-panel-classifier
+
+namePrefix: prod-
+
+commonLabels:
+  environment: production
+  app.kubernetes.io/part-of: solar-panel-classifier
+
+resources:
+  - ../../base
+
+replicas:
+  - name: solar-panel-api
+    count: 5
+
+configMapGenerator:
+  - name: solar-panel-config
+    behavior: merge
+    literals:
+      - LOG_LEVEL=INFO
+      - MODEL_PRELOAD=true
+
+images:
+  - name: solar-panel-classifier
+    newTag: v1.0.0
+
+patchesStrategicMerge:
+  - resource-patch.yaml

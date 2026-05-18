@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: solar-panel-classifier
+  labels:
+    app.kubernetes.io/name: solar-panel-classifier
+    app.kubernetes.io/component: mlops
+    environment: production

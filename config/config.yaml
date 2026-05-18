@@ -1,0 +1,38 @@
+# Solar Panel Image Classification - Configuration
+
+# Dataset paths
+data:
+  dir: "Data"
+  validation_split: 0.2
+  seed: 42
+
+# Image preprocessing
+image:
+  height: 224
+  width: 224
+  channels: 3
+  batch_size: 32
+
+# Class names (must match folder names under Data/)
+classes:
+  - Bird-drop
+  - Clean
+  - Dusty
+  - Electrical-damage
+  - Physical-Damage
+  - Snow-Covered
+
+# Model settings
+model:
+  default: "efficientnet"
+  paths:
+    efficientnet: "models/trained_effnet_finetune.keras"
+    mobilenetv2: "models/mobilenetv2_2.keras"
+
+# Training settings
+training:
+  epochs: 20
+  learning_rate: 0.0003
+  early_stopping_patience: 7
+  reduce_lr_patience: 3
+  reduce_lr_factor: 0.5
